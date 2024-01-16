@@ -1,4 +1,5 @@
 using Hangfire;
+using Hangfire.PostgreSql;
 using Hangfire.SqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,14 +7,31 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-builder.Services.AddHangfire(configuration => configuration
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(builder.Configuration.GetConnectionString("HangfireConnection"), new SqlServerStorageOptions()
+if (builder.Configuration["Driver"] == "PSQL")
+{
+    builder.Services.AddHangfire(config =>
     {
-        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(2)
-    }));
+        config.UsePostgreSqlStorage(otp =>
+        {
+            var connectionString = builder.Configuration.GetConnectionString("PsqlHangfireConnection");
+            otp.UseNpgsqlConnection(connectionString: connectionString);
+        }, new PostgreSqlStorageOptions()
+        {
+            InvisibilityTimeout = TimeSpan.FromMinutes(2)
+        });
+    });
+}
+else
+{
+    builder.Services.AddHangfire(configuration => configuration
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UseSqlServerStorage(builder.Configuration.GetConnectionString("HangfireConnection"), new SqlServerStorageOptions()
+        {
+            SlidingInvisibilityTimeout = TimeSpan.FromMinutes(2)
+        }));
+}
 
 builder.Services.AddHangfireServer();
 
